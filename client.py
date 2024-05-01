@@ -1,50 +1,34 @@
 import socket
 
 def main():
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    # Let the user define a port number
+    port = int(input("Enter port number: "))
+    client_socket.bind(('localhost', port))  # Bind to the user-defined port
+
+    server_address = ('localhost', 5000)
+
     try:
-        # Create a UDP socket
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-        # Ask user to define a port number
-        port = int(input("Enter port number: "))
-
-        # Connect to server
-        server_address = ('localhost', port)
-
         while True:
-            # Get user input for message
-            message = input("Enter message: ")
+            message = input("Enter message or type 'exit' to quit: ")
+            if message.lower() == 'exit':
+                break
 
-            # Check if the message is empty
-            if not message:
-                print("Invalid Message")
-                continue
-
-            # Check message format
-            if port == 1234:
-                if not message.startswith("Permission"):
-                    print("Invalid Message")
-                    continue
-                elif not message[10:].isdigit():
-                    print("Invalid Message")
-                    continue
-            elif port == 3333:
-                if not message.startswith("Request"):
-                    print("Invalid Message")
-                    continue
-                elif not message[7:].isdigit():
-                    print("Invalid Message")
-                    continue
-
-            # Send message to server
+            # Send message to the server
             client_socket.sendto(message.encode(), server_address)
 
-            # Receive server response
+            # Receive and print server response
             response, _ = client_socket.recvfrom(1024)
             print("Server response:", response.decode())
 
+            # Close client if the port is not allowed to communicate
+            if response.decode() == "Port is not allowed to communicate":
+                print("Disconnected by the server: port not allowed.")
+                break
+
     except Exception as e:
-        print("Error:", e)
+        print("Client Error:", e)
     finally:
         client_socket.close()
 

@@ -1,73 +1,61 @@
-
 import socket
 
 def main():
-    # Create a UDP socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    server_socket.bind(('localhost', 5000))  # Server listens on a fixed port
 
-    # Bind the socket to localhost and a specific port
-    server_socket.bind(('localhost', 9999))
-
-    # List to keep track of permitted numbers
     permitted_numbers = []
-
-    # Counter to keep track of the number of clients
     client_count = 0
 
     try:
-        while True:
-            # Receive message from client
-            message, client_address = server_socket.recvfrom(1024)
-            client_count += 1
+        while client_count < 4:
+            data, addr = server_socket.recvfrom(1024)
+            message = data.decode().strip()  # Decode and strip any leading/trailing whitespace
+            lower_message = message.lower()  # Convert message to lowercase for case-insensitive comparison
+            client_port = addr[1]
 
-            # Extract port number from client address
-            client_port = client_address[1]
+            print("Received message:", message)
+            print("From client:", addr)
 
-            # Print received message and client address
-            print("Received message:", message.decode())
-            print("From client:", client_address)
+            response = "Invalid Message"
+            should_count = False  # Indicator to determine if the client count should be incremented
 
-            # Check if total number of clients is greater than or equal to 4
+            if client_port == 1234:
+                if lower_message.startswith("permission") and lower_message[len("permission"):].isdigit():
+                    number = int(lower_message[len("permission"):])
+                    if number in permitted_numbers:
+                        response = "Already Permitted"
+                    else:
+                        permitted_numbers.append(number)
+                        response = "Permission Accepted"
+                        should_count = True  # Valid new message, should count
+                else:
+                    response = "Invalid Message"
+            elif client_port == 3333:
+                if lower_message.startswith("request") and lower_message[len("request"):].isdigit():
+                    number = int(lower_message[len("request"):])
+                    if number in permitted_numbers:
+                        response = "Request Accepted"
+                        should_count = True  # Valid new message, should count
+                    else:
+                        response = "Request Rejected"
+                else:
+                    response = "Invalid Message"
+            else:
+                response = "Port is not allowed to communicate"
+
+            server_socket.sendto(response.encode(), addr)
+
+            # Increment client count only for new valid messages
+            if should_count:
+                client_count += 1
+
             if client_count >= 4:
-                print("Closing server socket.")
+                print("Maximum client messages received. Closing server.")
                 break
 
-            # Handle messages based on client port
-            if client_port == 1234:
-                # Process messages for port 1234
-                if message.decode().startswith("Permission"):
-                    try:
-                        number = int(message.decode().split()[-1])  # Extract the last element as the number
-                        if number not in permitted_numbers:
-                            permitted_numbers.append(number)
-                            server_socket.sendto("Permission Accepted".encode(), client_address)
-                        else:
-                            server_socket.sendto("Already Permitted".encode(), client_address)
-                    except ValueError:
-                        server_socket.sendto("Invalid Message".encode(), client_address)
-                else:
-                    server_socket.sendto("Invalid Message".encode(), client_address)
-
-            elif client_port == 3333:
-                # Process messages for port 3333
-                if message.decode().startswith("Request"):
-                    try:
-                        number = int(message.decode().split()[-1])  # Extract the last element as the number
-                        if number in permitted_numbers:
-                            server_socket.sendto("Request Accepted".encode(), client_address)
-                        else:
-                            server_socket.sendto("Request Rejected".encode(), client_address)
-                    except ValueError:
-                        server_socket.sendto("Invalid Message".encode(), client_address)
-                else:
-                    server_socket.sendto("Invalid Message".encode(), client_address)
-
-            else:
-                # Send "Port is not allowed to communicate" response
-                server_socket.sendto("Port is not allowed to communicate".encode(), client_address)
-
     except Exception as e:
-        print("Error:", e)
+        print("Server Error:", e)
     finally:
         server_socket.close()
 
